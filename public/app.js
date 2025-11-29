@@ -1,155 +1,90 @@
-(function(){
-    let map;
-    let placeIds = [];
-    let paths = [];
-    let markers = [];
+let routeWithStopoverPolyline = null;
+let routeWithoutStopoverPolyline = null;
 
-    async function initMap() {
-        const { Map } = await google.maps.importLibrary('maps');
-        
-        map = new Map(document.getElementById('map'), {
-            center: { lat: -34.397, lng: 150.644 },
-            zoom: 8,
-            mapId: 'DEMO_MAP_ID'
-        });
-    }
-
-    async function initPlace() {
-        const { Autocomplete } = await google.maps.importLibrary('places');
-        let autocomplete = [];
-        let locationFields = Array.from(document.getElementsByClassName('input-location'));
-
-        //Enable autocomplete for input fields
-        locationFields.forEach((elem,i) => {
-            autocomplete[i] = new Autocomplete(elem);
-            google.maps.event.addListener(autocomplete[i],"place_changed", () => {
-                let place = autocomplete[i].getPlace(); 
-                if(Object.keys(place).length > 0){
-                    if (place.place_id){
-                        placeIds[i] = place.place_id; //We use Place Id in this example                
-                    } else {
-                        placeIds.splice(i,1); //If no place is selected or no place is found, remove the previous value from the placeIds.
-                        window.alert(`No details available for input: ${place.name}`);
-                        return;
-                    }
-                }
-            }); 
-        });        
-    }
-
-    function requestRoute(){
-        let btn = document.getElementById('btn-getroute');
-
-        btn.addEventListener('click', () => {
-            //In this example, we will extract the Place IDs from the Autocomplete response
-            //and use the Place ID for origin and destination
-            if(placeIds.length == 2){
-                let reqBody = {
-                    "origin": {
-                        "placeId": placeIds[0]
-                    },
-                    "destination": {
-                        "placeId": placeIds[1]
-                    }
-                }
+async function requestRoutes() {
+    console.log('🔍 Routes...');
     
-                fetch("/request-route", {
-                    method: 'POST',
-                    body: JSON.stringify(reqBody),
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }).then((response) => {
-                    return response.json();
-                }).then((data) => {
-                    console.log(data);
-                    renderRoutes(data);
-                }).catch((error) => {
-                    console.log(error);
-                });
-            } else {
-                window.alert('Location must be set');
-                return;
-            }
-        });
+    const originPlaceId = document.getElementById('origin-place-id').value;
+    const destPlaceId = document.getElementById('destination-place-id').value;
+    
+    if (!originPlaceId || !destPlaceId) {
+        alert('Select addresses from dropdowns');
+        return;
     }
 
-    async function renderRoutes(data) {
-        clearUIElem(paths,'polyline');
-        const { encoding } = await google.maps.importLibrary("geometry");
-        let routes = data.routes;
-        let decodedPaths = [];
+    clearMap();
 
-        ///Display routes and markers
-        routes.forEach((route,i) => {
-            if(route.hasOwnProperty('polyline')){
-                //Decode the encoded polyline
-                decodedPaths.push(encoding.decodePath(route.polyline.encodedPolyline));
-
-                //Draw polyline on the map
-                for(let i = decodedPaths.length - 1; i >= 0; i--){
-                    let polyline = new google.maps.Polyline({
-                        map: map,
-                        path: decodedPaths[i],
-                        strokeColor: "#4285f4",
-                        strokeOpacity: 1,
-                        strokeWeight: 5
-                    });
-                    paths.push(polyline);
-                }
-                
-                //Add markers for origin and destination
-                addMarker(route.legs[0].startLocation.latLng,"A");
-                addMarker(route.legs[0].endLocation.latLng,"B");
-
-                setViewport(route.viewport);
-            } else {
-                console.log("Route cannot be found");
-            }
+    try {
+        const response = await fetch('/request-routes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                origin: { placeId: originPlaceId },
+                destination: { placeId: destPlaceId }
+            })
         });
-    }
+        
+        const data = await response.json();
+        console.log('🔍 FULL RESPONSE:', data);
 
-    async function addMarker(pos,label){
-        clearUIElem(markers,'advMarker');
-        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-        const { PinElement } = await google.maps.importLibrary("marker");
-        const { LatLng } = await google.maps.importLibrary("core");
-        let pinGlyph = new PinElement({
-            glyphColor: "#fff",
-            glyph: label
-        });
-        let marker = new AdvancedMarkerElement({
-            position: new LatLng({lat:pos.latitude,lng:pos.longitude}),
-            gmpDraggable: false,
-            content: pinGlyph.element,
-            map: map
-        });
-        markers.push(marker);
-    }
+        // ✅ DEBUG: Check both routes
+        console.log('Without stopover:', data.routeWithoutStopover?.routes?.[0]);
+        console.log('With stopover:', data.routeWithStopover?.routes?.[0]);
 
-    async function setViewport(viewPort) {
-        const { LatLng } = await google.maps.importLibrary("core");
-        const { LatLngBounds } = await google.maps.importLibrary("core");        
-        let sw = new LatLng({lat:viewPort.low.latitude,lng:viewPort.low.longitude});
-        let ne = new LatLng({lat:viewPort.high.latitude,lng:viewPort.high.longitude});        
-        map.fitBounds(new LatLngBounds(sw,ne));
-    }
-
-    function clearUIElem(obj,type) {
-        if(obj.length > 0){
-            if(type == 'advMarker'){
-                obj.forEach(function(item){
-                    item.map = null;
-                });
-            } else {
-                obj.forEach(function(item){
-                    item.setMap(null);
-                });
-            }
+        // Blue: Direct
+        if (data.routeWithoutStopover?.routes?.[0]?.polyline?.encodedPolyline) {
+            const path = google.maps.geometry.encoding.decodePath(
+                data.routeWithoutStopover.routes[0].polyline.encodedPolyline
+            );
+            routeWithoutStopoverPolyline = new google.maps.Polyline({
+                path: path,
+                strokeColor: '#0000FF',
+                strokeOpacity: 0.8,
+                strokeWeight: 5,
+                map: window.map
+            });
+            console.log('✅ BLUE drawn');
         }
-    }
 
-    initMap();
-    initPlace();
-    requestRoute();
-}());
+        // Red: Stopover  
+        if (data.routeWithStopover?.routes?.[0]?.polyline?.encodedPolyline) {
+            const path = google.maps.geometry.encoding.decodePath(
+                data.routeWithStopover.routes[0].polyline.encodedPolyline
+            );
+            routeWithStopoverPolyline = new google.maps.Polyline({
+                path: path,
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 6,
+                map: window.map
+            });
+            console.log('✅ RED drawn');
+        }
+
+        // Stopover marker
+        if (data.stopoverLocation?.latLng?.latitude) {
+            new google.maps.Marker({
+                position: {
+                    lat: data.stopoverLocation.latLng.latitude,
+                    lng: data.stopoverLocation.latLng.longitude
+                },
+                map: window.map,
+                icon: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'
+            });
+        }
+
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function clearMap() {
+    if (routeWithStopoverPolyline) {
+        routeWithStopoverPolyline.setMap(null);
+        routeWithStopoverPolyline = null;
+    }
+    if (routeWithoutStopoverPolyline) {
+        routeWithoutStopoverPolyline.setMap(null);
+        routeWithoutStopoverPolyline = null;
+    }
+}
