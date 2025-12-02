@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 
 const port = 8080;
 const urlencodedParser = bodyParser.urlencoded({extended: true});
+const {handleDistances} = require('./gasly');
 
 // const STOPOVER = {
 //   // placeId: "ChIJ8dmUZKhzhlQRyhPJRuvlaWk"
@@ -11,8 +12,8 @@ const urlencodedParser = bodyParser.urlencoded({extended: true});
 // };
 const STOPOVER = {
   latLng: { 
-    latitude: 49.25768634752348,
-    longitude: -123.16725558491186
+    latitude: 49.264300976364076,
+    longitude: -123.16800106813271
   }
 };
 
@@ -46,21 +47,34 @@ function main() {
   app.use(urlencodedParser);
   app.use(express.json());
 
-  app.post('/request-routes', async (req, res) => {  // Changed endpoint
+  app.post('/request-routes', async (req, res) => {
     try {
       const origin = req.body.origin;
       const destination = req.body.destination;
 
-      // Compute BOTH routes
       const [withStopover, withoutStopover] = await Promise.all([
         computeRoute(origin, destination, true),
         computeRoute(origin, destination, false)
       ]);
 
+      const distanceWithStopover =
+        withStopover.routes && withStopover.routes[0]
+          ? withStopover.routes[0].distanceMeters
+          : null;
+
+      const distanceWithoutStopover =
+        withoutStopover.routes && withoutStopover.routes[0]
+          ? withoutStopover.routes[0].distanceMeters
+          : null;
+
+      handleDistances(distanceWithStopover, distanceWithoutStopover);
+
       res.json({
         routeWithStopover: withStopover,
         routeWithoutStopover: withoutStopover,
-        stopoverLocation: STOPOVER
+        stopoverLocation: STOPOVER,
+        distanceWithStopover,
+        distanceWithoutStopover
       });
     } catch (error) {
       console.error(error);
