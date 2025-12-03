@@ -46,6 +46,16 @@
       button:hover {
         background: #3367d6;
       }
+      /* Hide close button on InfoWindow */
+      .gm-style-iw-c button[aria-label="Close"] {
+        display: none !important;
+      }
+      .gm-style-iw button[aria-label="Close"] {
+        display: none !important;
+      }
+      .gm-ui-hover-effect {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
@@ -74,6 +84,9 @@
         <div class="inputgroup">
           <button id="btn-getroute">Get Routes</button>
         </div>
+        <div class="inputgroup">
+          <button id="btn-updatedata">Update Data</button>
+        </div>
       </div>
       <div class="main">
         <div id="map"></div>
@@ -82,7 +95,11 @@
 
     <!-- ✅ EVERYTHING INLINE - NO EXTERNAL app.js NEEDED -->
     <script>
-      let map, routeWithStopoverPolyline, routeWithoutStopoverPolyline;
+      let map,
+        routeWithStopoverPolyline,
+        routeWithoutStopoverPolyline,
+        priceLabel,
+        hardcodedPriceLabel;
 
       // ✅ GLOBAL initMap - Called by Google Maps
       function initMap() {
@@ -129,6 +146,9 @@
         document
           .getElementById("btn-getroute")
           .addEventListener("click", requestRoutes);
+        document
+          .getElementById("btn-updatedata")
+          .addEventListener("click", updateData);
         console.log("✅ READY - Type addresses & click Get Routes");
       }
 
@@ -162,6 +182,34 @@
           console.log("📦 FULL RESPONSE:", data);
           console.log("🎯 Use Stopover:", data.useStopover);
 
+          // Always show gas station marker and price
+          if (data.stopoverLocation?.latLng?.latitude) {
+            const markerPosition = {
+              lat: data.stopoverLocation.latLng.latitude,
+              lng: data.stopoverLocation.latLng.longitude,
+            };
+
+            new google.maps.Marker({
+              position: markerPosition,
+              map: map,
+              title: "Gas Station",
+              icon: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+            });
+
+            // Add gas price label above the marker
+            if (data.gasPrice) {
+              priceLabel = new google.maps.InfoWindow({
+                content: `<div style="background: white; color: black; padding: 5px 10px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px;">${data.gasPrice.toFixed(
+                  1
+                )}¢</div>`,
+                position: markerPosition,
+                disableAutoPan: true,
+                disableCloseButton: true,
+              });
+              priceLabel.open(map);
+            }
+          }
+
           // Display route based on useStopover flag
           if (data.useStopover) {
             // Show stopover route (Red)
@@ -180,19 +228,6 @@
                 map: map,
               });
               console.log("✅ RED stopover route drawn (cheaper option)");
-            }
-
-            // Show stopover marker
-            if (data.stopoverLocation?.latLng?.latitude) {
-              new google.maps.Marker({
-                position: {
-                  lat: data.stopoverLocation.latLng.latitude,
-                  lng: data.stopoverLocation.latLng.longitude,
-                },
-                map: map,
-                title: "Gas Station Stopover (Cheaper)",
-                icon: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
-              });
             }
           } else {
             // Show direct route (Blue)
@@ -213,6 +248,37 @@
               console.log("✅ BLUE direct route drawn (cheaper option)");
             }
           }
+
+          // Always show hardcoded gas station marker with price
+          const hardcodedGasStation = {
+            lat: 49.263542430132006,
+            lng: -123.20347273542006,
+            price: 155.9,
+          };
+
+          new google.maps.Marker({
+            position: {
+              lat: hardcodedGasStation.lat,
+              lng: hardcodedGasStation.lng,
+            },
+            map: map,
+            title: "Gas Station (Hardcoded)",
+            icon: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+          });
+
+          // Add gas price label above the hardcoded marker
+          hardcodedPriceLabel = new google.maps.InfoWindow({
+            content: `<div style="background: white; color: black; padding: 5px 10px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px;">${hardcodedGasStation.price.toFixed(
+              1
+            )}¢</div>`,
+            position: {
+              lat: hardcodedGasStation.lat,
+              lng: hardcodedGasStation.lng,
+            },
+            disableAutoPan: true,
+            disableCloseButton: true,
+          });
+          hardcodedPriceLabel.open(map);
         } catch (error) {
           console.error("💥 Error:", error);
           alert("Backend error - check console");
@@ -227,6 +293,43 @@
         if (routeWithoutStopoverPolyline) {
           routeWithoutStopoverPolyline.setMap(null);
           routeWithoutStopoverPolyline = null;
+        }
+        if (priceLabel) {
+          priceLabel.close();
+          priceLabel = null;
+        }
+        if (hardcodedPriceLabel) {
+          hardcodedPriceLabel.close();
+          hardcodedPriceLabel = null;
+        }
+      }
+
+      // ✅ updateData - Capture and scan via Python, then update prices
+      async function updateData() {
+        console.log("📸 Capturing and scanning...");
+
+        try {
+          const response = await fetch("/update-data", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          const data = await response.json();
+          console.log("📦 Scan response:", data);
+
+          if (data.success) {
+            alert(
+              `Scanned number: ${
+                data.number
+              } (confidence: ${data.confidence.toFixed(2)})`
+            );
+            console.log("✅ Price updated successfully");
+          } else {
+            alert(`Scan failed: ${data.message || data.error}`);
+          }
+        } catch (error) {
+          console.error("💥 Error:", error);
+          alert("Error updating data - check console");
         }
       }
     </script>

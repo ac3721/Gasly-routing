@@ -3,7 +3,9 @@ const typical_mileage = 10;
 const gas_prices = new Map();
 
 function handleDistances(distanceWithStopover, distanceWithoutStopover) {
-  updatePrices();
+  if (!gas_prices.has("path") || !gas_prices.has("detour")) {
+    updatePrices();
+  }
   console.log("With stopover:", distanceWithStopover);
   console.log("Without stopover:", distanceWithoutStopover);
   console.log(
@@ -36,9 +38,20 @@ function handleDistances(distanceWithStopover, distanceWithoutStopover) {
 
 // AMS Student Nest, University Boulevard, UBC, Vancouver, BC, Canada
 // Almond Park, West 12th Avenue, Vancouver, BC, Canada
-function updatePrices() {
+function updatePrices(detourPrice = 160) {
   gas_prices.set("path", 155.9);
-  gas_prices.set("detour", 160);
+  gas_prices.set("detour", detourPrice);
+  console.log(`Updated prices - path: 155.9, detour: ${detourPrice}`);
 }
 
-module.exports = { handleDistances };
+function getGasPrices() {
+  if (!gas_prices.has("path") || !gas_prices.has("detour")) {
+    updatePrices();
+  }
+  return {
+    path: gas_prices.get("path"),
+    detour: gas_prices.get("detour"),
+  };
+}
+
+module.exports = { handleDistances, updatePrices, getGasPrices };

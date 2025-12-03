@@ -4,7 +4,7 @@ const bodyParser = require("body-parser");
 
 const port = 8080;
 const urlencodedParser = bodyParser.urlencoded({ extended: true });
-const { handleDistances } = require("./gasly");
+const { handleDistances, updatePrices } = require("./gasly");
 
 // const STOPOVER = {
 //   // placeId: "ChIJ8dmUZKhzhlQRyhPJRuvlaWk"
@@ -76,6 +76,10 @@ function main() {
         distanceWithoutStopover
       );
 
+      // Get gas prices from gasly module
+      const { getGasPrices } = require("./gasly");
+      const gasPrices = getGasPrices();
+
       res.json({
         routeWithStopover: withStopover,
         routeWithoutStopover: withoutStopover,
@@ -83,9 +87,43 @@ function main() {
         distanceWithStopover,
         distanceWithoutStopover,
         useStopover,
+        gasPrice: gasPrices.detour,
       });
     } catch (error) {
       console.error(error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/update-data", async (req, res) => {
+    try {
+      console.log("Calling Python Flask API to capture and scan...");
+
+      // Call Python Flask API
+      const response = await fetch("http://localhost:5000/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json();
+      console.log("Python API response:", data);
+
+      if (data.success && data.number) {
+        // Update prices with the scanned number
+        const scannedPrice = parseFloat(data.number);
+        updatePrices((detourPrice = scannedPrice));
+
+        res.json({
+          success: true,
+          number: data.number,
+          confidence: data.confidence,
+          message: "Price updated successfully",
+        });
+      } else {
+        res.json(data);
+      }
+    } catch (error) {
+      console.error("Error calling Python API:", error);
       res.status(500).json({ error: error.message });
     }
   });
