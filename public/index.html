@@ -1,178 +1,240 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>GMP Autocomplete + Routes</title>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <style>
-        .container { display: flex; height: 100vh; }
-        .aside { width: 300px; padding: 20px; background: #f5f5f5; }
-        .main { flex: 1; }
-        #map { height: 100%; width: 100%; }
-        .inputgroup { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        button { width: 100%; padding: 12px; background: #4285f4; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #3367d6; }
+      .container {
+        display: flex;
+        height: 100vh;
+      }
+      .aside {
+        width: 300px;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .main {
+        flex: 1;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+      .inputgroup {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        width: 100%;
+        padding: 12px;
+        background: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #3367d6;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="aside">
-            <div class="inputgroup">
-                <label for="origin">Start</label>
-                <input type="text" id="origin" class="input-location" placeholder="Enter start address">
-            </div>
-            <div class="inputgroup">
-                <label for="destination">End</label>
-                <input type="text" id="destination" class="input-location" placeholder="Enter end address">
-            </div>
-            <input type="hidden" id="origin-place-id">
-            <input type="hidden" id="destination-place-id">
-            <div class="inputgroup">
-                <button id="btn-getroute">Get Routes</button>
-            </div>
+      <div class="aside">
+        <div class="inputgroup">
+          <label for="origin">Start</label>
+          <input
+            type="text"
+            id="origin"
+            class="input-location"
+            placeholder="Enter start address"
+          />
         </div>
-        <div class="main">
-            <div id="map"></div>
+        <div class="inputgroup">
+          <label for="destination">End</label>
+          <input
+            type="text"
+            id="destination"
+            class="input-location"
+            placeholder="Enter end address"
+          />
         </div>
+        <input type="hidden" id="origin-place-id" />
+        <input type="hidden" id="destination-place-id" />
+        <div class="inputgroup">
+          <button id="btn-getroute">Get Routes</button>
+        </div>
+      </div>
+      <div class="main">
+        <div id="map"></div>
+      </div>
     </div>
 
     <!-- ✅ EVERYTHING INLINE - NO EXTERNAL app.js NEEDED -->
     <script>
-        let map, routeWithStopoverPolyline, routeWithoutStopoverPolyline;
-        
-        // ✅ GLOBAL initMap - Called by Google Maps
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: { lat: 37.7749, lng: -122.4194 },
-                zoom: 8,
-                mapId: 'DEMO_MAP_ID'
-            });
-            
-            // Origin autocomplete
-            const originInput = document.getElementById('origin');
-            const autocompleteOrigin = new google.maps.places.Autocomplete(originInput, { 
-                fields: ['place_id'] 
-            });
-            autocompleteOrigin.addListener('place_changed', () => {
-                const place = autocompleteOrigin.getPlace();
-                if (place.place_id) {
-                    document.getElementById('origin-place-id').value = place.place_id;
-                    console.log('✅ Origin:', place.place_id);
-                }
-            });
+      let map, routeWithStopoverPolyline, routeWithoutStopoverPolyline;
 
-            // Destination autocomplete  
-            const destInput = document.getElementById('destination');
-            const autocompleteDest = new google.maps.places.Autocomplete(destInput, { 
-                fields: ['place_id'] 
-            });
-            autocompleteDest.addListener('place_changed', () => {
-                const place = autocompleteDest.getPlace();
-                if (place.place_id) {
-                    document.getElementById('destination-place-id').value = place.place_id;
-                    console.log('✅ Destination:', place.place_id);
-                }
-            });
-            
-            // Button
-            document.getElementById('btn-getroute').addEventListener('click', requestRoutes);
-            console.log('✅ READY - Type addresses & click Get Routes');
+      // ✅ GLOBAL initMap - Called by Google Maps
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 49.25306110580261, lng: -123.18205396352421 },
+          zoom: 8,
+          mapId: "DEMO_MAP_ID",
+        });
+
+        // Origin autocomplete
+        const originInput = document.getElementById("origin");
+        const autocompleteOrigin = new google.maps.places.Autocomplete(
+          originInput,
+          {
+            fields: ["place_id"],
+          }
+        );
+        autocompleteOrigin.addListener("place_changed", () => {
+          const place = autocompleteOrigin.getPlace();
+          if (place.place_id) {
+            document.getElementById("origin-place-id").value = place.place_id;
+            console.log("✅ Origin:", place.place_id);
+          }
+        });
+
+        // Destination autocomplete
+        const destInput = document.getElementById("destination");
+        const autocompleteDest = new google.maps.places.Autocomplete(
+          destInput,
+          {
+            fields: ["place_id"],
+          }
+        );
+        autocompleteDest.addListener("place_changed", () => {
+          const place = autocompleteDest.getPlace();
+          if (place.place_id) {
+            document.getElementById("destination-place-id").value =
+              place.place_id;
+            console.log("✅ Destination:", place.place_id);
+          }
+        });
+
+        // Button
+        document
+          .getElementById("btn-getroute")
+          .addEventListener("click", requestRoutes);
+        console.log("✅ READY - Type addresses & click Get Routes");
+      }
+
+      // ✅ requestRoutes - Called by button
+      async function requestRoutes() {
+        console.log("🔍 Requesting routes...");
+
+        const originPlaceId = document.getElementById("origin-place-id").value;
+        const destPlaceId = document.getElementById(
+          "destination-place-id"
+        ).value;
+
+        if (!originPlaceId || !destPlaceId) {
+          alert("Please select addresses from dropdowns");
+          return;
         }
 
-        // ✅ requestRoutes - Called by button
-        async function requestRoutes() {
-            console.log('🔍 Requesting routes...');
-            
-            const originPlaceId = document.getElementById('origin-place-id').value;
-            const destPlaceId = document.getElementById('destination-place-id').value;
-            
-            if (!originPlaceId || !destPlaceId) {
-                alert('Please select addresses from dropdowns');
-                return;
+        clearMap();
+
+        try {
+          const response = await fetch("/request-routes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              origin: { placeId: originPlaceId },
+              destination: { placeId: destPlaceId },
+            }),
+          });
+
+          const data = await response.json();
+          console.log("📦 FULL RESPONSE:", data);
+          console.log("🎯 Use Stopover:", data.useStopover);
+
+          // Display route based on useStopover flag
+          if (data.useStopover) {
+            // Show stopover route (Red)
+            if (
+              data.routeWithStopover?.routes?.[0]?.polyline?.encodedPolyline
+            ) {
+              const path = google.maps.geometry.encoding.decodePath(
+                data.routeWithStopover.routes[0].polyline.encodedPolyline
+              );
+              routeWithStopoverPolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.8,
+                strokeWeight: 6,
+                map: map,
+              });
+              console.log("✅ RED stopover route drawn (cheaper option)");
             }
 
-            clearMap();
-
-            try {
-                const response = await fetch('/request-routes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        origin: { placeId: originPlaceId },
-                        destination: { placeId: destPlaceId }
-                    })
-                });
-                
-                const data = await response.json();
-                console.log('📦 FULL RESPONSE:', data);
-
-                // Blue: Direct route (no stopover)
-                if (data.routeWithoutStopover?.routes?.[0]?.polyline?.encodedPolyline) {
-                    const path = google.maps.geometry.encoding.decodePath(
-                        data.routeWithoutStopover.routes[0].polyline.encodedPolyline
-                    );
-                    routeWithoutStopoverPolyline = new google.maps.Polyline({
-                        path: path,
-                        geodesic: true,
-                        strokeColor: '#0000FF',
-                        strokeOpacity: 0.8,
-                        strokeWeight: 5,
-                        map: map
-                    });
-                    console.log('✅ BLUE direct route drawn');
-                }
-
-                // Red: Stopover route
-                if (data.routeWithStopover?.routes?.[0]?.polyline?.encodedPolyline) {
-                    const path = google.maps.geometry.encoding.decodePath(
-                        data.routeWithStopover.routes[0].polyline.encodedPolyline
-                    );
-                    routeWithStopoverPolyline = new google.maps.Polyline({
-                        path: path,
-                        geodesic: true,
-                        strokeColor: '#FF0000',
-                        strokeOpacity: 0.8,
-                        strokeWeight: 6,
-                        map: map
-                    });
-                    console.log('✅ RED stopover route drawn');
-                } else {
-                    console.warn('❌ No stopover route in response');
-                }
-
-                // Orange stopover marker
-                if (data.stopoverLocation?.latLng?.latitude) {
-                    new google.maps.Marker({
-                        position: {
-                            lat: data.stopoverLocation.latLng.latitude,
-                            lng: data.stopoverLocation.latLng.longitude
-                        },
-                        map: map,
-                        title: 'Googleplex Stopover',
-                        icon: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png'
-                    });
-                }
-
-            } catch (error) {
-                console.error('💥 Error:', error);
-                alert('Backend error - check console');
+            // Show stopover marker
+            if (data.stopoverLocation?.latLng?.latitude) {
+              new google.maps.Marker({
+                position: {
+                  lat: data.stopoverLocation.latLng.latitude,
+                  lng: data.stopoverLocation.latLng.longitude,
+                },
+                map: map,
+                title: "Gas Station Stopover (Cheaper)",
+                icon: "https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
+              });
             }
+          } else {
+            // Show direct route (Blue)
+            if (
+              data.routeWithoutStopover?.routes?.[0]?.polyline?.encodedPolyline
+            ) {
+              const path = google.maps.geometry.encoding.decodePath(
+                data.routeWithoutStopover.routes[0].polyline.encodedPolyline
+              );
+              routeWithoutStopoverPolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#0000FF",
+                strokeOpacity: 0.8,
+                strokeWeight: 5,
+                map: map,
+              });
+              console.log("✅ BLUE direct route drawn (cheaper option)");
+            }
+          }
+        } catch (error) {
+          console.error("💥 Error:", error);
+          alert("Backend error - check console");
         }
+      }
 
-        function clearMap() {
-            if (routeWithStopoverPolyline) {
-                routeWithStopoverPolyline.setMap(null);
-                routeWithStopoverPolyline = null;
-            }
-            if (routeWithoutStopoverPolyline) {
-                routeWithoutStopoverPolyline.setMap(null);
-                routeWithoutStopoverPolyline = null;
-            }
+      function clearMap() {
+        if (routeWithStopoverPolyline) {
+          routeWithStopoverPolyline.setMap(null);
+          routeWithStopoverPolyline = null;
         }
+        if (routeWithoutStopoverPolyline) {
+          routeWithoutStopoverPolyline.setMap(null);
+          routeWithoutStopoverPolyline = null;
+        }
+      }
     </script>
-    
+
     <!-- ✅ Google Maps LAST - Calls initMap -->
-    <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAeCfwA9OHLveBZB2p3Z-9sHMV3wS1eZDo&libraries=places,geometry&callback=initMap"></script>
-</body>
+    <script
+      async
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAeCfwA9OHLveBZB2p3Z-9sHMV3wS1eZDo&libraries=places,geometry&callback=initMap"
+    ></script>
+  </body>
 </html>

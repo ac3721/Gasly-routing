@@ -1,20 +1,20 @@
-const express = require('express');
+const express = require("express");
 const app = express();
-const bodyParser = require('body-parser');
+const bodyParser = require("body-parser");
 
 const port = 8080;
-const urlencodedParser = bodyParser.urlencoded({extended: true});
-const {handleDistances} = require('./gasly');
+const urlencodedParser = bodyParser.urlencoded({ extended: true });
+const { handleDistances } = require("./gasly");
 
 // const STOPOVER = {
 //   // placeId: "ChIJ8dmUZKhzhlQRyhPJRuvlaWk"
 //   latLng: { latitude: 49.25768634752348, longitude: -123.16725558491186 }
 // };
 const STOPOVER = {
-  latLng: { 
+  latLng: {
     latitude: 49.264300976364076,
-    longitude: -123.16800106813271
-  }
+    longitude: -123.16800106813271,
+  },
 };
 
 async function computeRoute(origin, destination, withStopover = false) {
@@ -23,38 +23,42 @@ async function computeRoute(origin, destination, withStopover = false) {
     destination,
     travelMode: "DRIVE",
     routingPreference: "TRAFFIC_UNAWARE",
-    routeModifiers: { avoidTolls: true, avoidFerries: true }
+    routeModifiers: { avoidTolls: true, avoidFerries: true },
   };
-  
+
   if (withStopover) {
     request.intermediates = [{ location: STOPOVER }];
   }
 
-  const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": "AIzaSyAeCfwA9OHLveBZB2p3Z-9sHMV3wS1eZDo",
-      "X-Goog-FieldMask": "routes.distanceMeters,routes.duration,routes.polyline"
-    },
-    body: JSON.stringify(request)
-  });
+  const response = await fetch(
+    "https://routes.googleapis.com/directions/v2:computeRoutes",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": "AIzaSyAeCfwA9OHLveBZB2p3Z-9sHMV3wS1eZDo",
+        "X-Goog-FieldMask":
+          "routes.distanceMeters,routes.duration,routes.polyline",
+      },
+      body: JSON.stringify(request),
+    }
+  );
   return response.json();
 }
 
 function main() {
-  app.use('/', express.static('public'));
+  app.use("/", express.static("public"));
   app.use(urlencodedParser);
   app.use(express.json());
 
-  app.post('/request-routes', async (req, res) => {
+  app.post("/request-routes", async (req, res) => {
     try {
       const origin = req.body.origin;
       const destination = req.body.destination;
 
       const [withStopover, withoutStopover] = await Promise.all([
         computeRoute(origin, destination, true),
-        computeRoute(origin, destination, false)
+        computeRoute(origin, destination, false),
       ]);
 
       const distanceWithStopover =
@@ -67,14 +71,18 @@ function main() {
           ? withoutStopover.routes[0].distanceMeters
           : null;
 
-      handleDistances(distanceWithStopover, distanceWithoutStopover);
+      const useStopover = handleDistances(
+        distanceWithStopover,
+        distanceWithoutStopover
+      );
 
       res.json({
         routeWithStopover: withStopover,
         routeWithoutStopover: withoutStopover,
         stopoverLocation: STOPOVER,
         distanceWithStopover,
-        distanceWithoutStopover
+        distanceWithoutStopover,
+        useStopover,
       });
     } catch (error) {
       console.error(error);
@@ -84,7 +92,7 @@ function main() {
 
   app.listen(port, () => {
     console.log(`App listening on port ${port}`);
-    console.log('Press Ctrl+C to quit.');
+    console.log("Press Ctrl+C to quit.");
   });
 }
 
